@@ -9,6 +9,8 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, w / h, 1, 1000);
 camera.position.z = 8;
 
+scene.fog = new THREE.Fog(0x000000, 5, 15);   // Neblina
+
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(w, h);
 renderer.setPixelRatio(window.devicePixelRatio);
@@ -24,13 +26,13 @@ const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
 dirLight.position.set(5, 5, 5);
 scene.add(dirLight);
 
-// Inicialização do Rapier
+// Inicialização do RAPIER
 await RAPIER.init();
 const world = new RAPIER.World({ x: 0, y: 0, z: 0 });   // ({ x: 0, y: 0, z: 0 }) se refere às forças de gravidade, que nesse caso são nulas porque queremos uma gravidade central personalizada
 
 // Criação dos 'rigid bodies'
 const bodies = [];
-const numBodies = 80;
+const numBodies = 100;
 const geometries = [
     new THREE.BoxGeometry(0.6, 0.6, 0.6),
     new THREE.SphereGeometry(0.4, 16, 16),
@@ -41,7 +43,7 @@ const palette = [
     '#4285f4', '#ea4335', '#fbbc05', '#34a853', '#ff6d01', '#673ab7', '#009688', '#e91e63', '#3f51b5'
 ]
 
-for (let i = 0; i < numBodies; i++) {   // Determinação da física e da colisão dos 'rigid bodies'
+for (let i = 0; i < numBodies; i++) {   // Determinação de instâncias singulares para cada 'rigid body'
     const geo = geometries[Math.floor(Math.random() * geometries.length)];
     const mat = new THREE.MeshPhongMaterial({
         color: new THREE.Color(palette[Math.floor(Math.random() * palette.length)])
@@ -68,7 +70,7 @@ for (let i = 0; i < numBodies; i++) {   // Determinação da física e da colis�
 
     if (geo.type === 'BoxGeometry') colliderDesc = RAPIER.ColliderDesc.cuboid(0.3, 0.3, 0.3);
     else if (geo.type === 'SphereGeometry') colliderDesc = RAPIER.ColliderDesc.ball(0.4);
-    else colliderDesc = RAPIER.ColliderDesc.convexHull(vertices);   // Para formas complexas, o Rapier não tem um método direto, o que nos leva a recorrer a um método que leia a geometria e crie um colisor aproximado
+    else colliderDesc = RAPIER.ColliderDesc.convexHull(vertices);   // Para formas complexas, o RAPIER não tem um método direto, o que nos leva a recorrer a um método que leia a geometria e crie um colisor aproximado
     
     world.createCollider(colliderDesc, rigidBody);
 
@@ -101,12 +103,17 @@ window.addEventListener('mousemove', (event) => {   // Converte a posição em p
     pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;       // A coordenada y é calculada de maneira semelhante, mas é invertida (multiplicando por -1) porque as coordenadas de tela têm a origem no canto superior esquerdo, enquanto as coordenadas normalizadas têm a origem no centro
 });
 
+// Controle de clique do mouse
+let isMouseDown = false;
+
+window.addEventListener('mousedown', () => isMouseDown = true);
+window.addEventListener('mouseup', () => isMouseDown = false);
 
 // Loop de animação
 function animate() {   // É executado cerca de 60 vezes por segundo
     requestAnimationFrame(animate);
 
-    // Requisição para execução dos cálculos de física do Rapier
+    // Requisição para execução dos cálculos de física do RAPIER
     world.step();
 
     // Atualizar posição do mouse
@@ -122,11 +129,18 @@ function animate() {   // É executado cerca de 60 vezes por segundo
 
 
         // Gravidade central: empurra para (0,0,0)
-        const currentPos = rigidBody.translation();   // Captura a posição atual (x, y, z) direto do motor de física Rapier
-        const vecPos = new THREE.Vector3(currentPos.x, currentPos.y, currentPos.z);   // Converte os dados brutos da física em um vetor matemático do Three.js
-        const force = vecPos.multiplyScalar(-10.0);   // Inverte o vetor e escala a força para criar a direção de atração ao centro
+        const currentPos = rigidBody.translation();   // Captura a posição atual (x, y, z) direto do motor de física RAPIER
+        const vecPos = new THREE.Vector3(currentPos.x, currentPos.y, currentPos.z);   // Converte os dados brutos da física em um vetor matemático do THREE.js
+
+        const targetPos = isMouseDown ? mouse3D : new THREE.Vector3(0, 0, 0);       // Define o alvo da atração: a posição do mouse (clicado) ou a origem (solto)
+        const forceDirection = new THREE.Vector3().subVectors(targetPos, vecPos);   // Calcula o vetor de direção que aponta do objeto atual para o alvo
+
+        const distance = vecPos.distanceTo(targetPos);   // Calcula a distância real entre o objeto e o alvo para controle de intensidade
+        const pull = 260.0 / (distance / 1.25);          // Aplica a regra de intensidade: quanto menor a distância, maior a força de atração
+        const force = isMouseDown ? forceDirection.normalize().multiplyScalar(pull) : vecPos.multiplyScalar(-10.0);   // Se o mouse estiver pressionado, a força é direcionada para o mouse, caso contrário, é direcionada para o centro (0,0,0)
 
         rigidBody.addForce(force, true);   // Aplica a força calculada no 'rigid body' para mover o objeto fisicamente
+
 
         // Sincronizar a posição e rotação do 'mesh' com o 'rigid body'
         mesh.position.copy(currentPos);
@@ -135,7 +149,6 @@ function animate() {   // É executado cerca de 60 vezes por segundo
 
     renderer.render(scene, camera);
 }
-
 
 // Ajuste de janela
 window.addEventListener('resize', () => {
