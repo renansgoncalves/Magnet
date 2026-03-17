@@ -6,19 +6,27 @@ Este projeto é um experimento interativo em 3D que combina o motor de renderiza
 
 ## 🛠️ Tecnologias
 * **Vite**: Bundler para desenvolvimento rápido.
-* **Three.js**: Biblioteca principal para visualização 3D.
-* **Rapier**: Motor de física performático.
+* **Three.js**: Biblioteca principal para renderização WebGL.
+* **Rapier**: Motor de física performático para cálculos de colisão e corpos rígidos.
 
 ## 🪄 Funcionalidades
-* Renderização em tempo real com Three.js.
-* Simulação física interativa com Rapier.
-* Objeto em cena controlado pelo mouse.
+* Lógica separada em módulos independentes (arquitetura modular).
+* Sistema de atração magnética baseado na posição do mouse e distância.
+* Simulação de 100 corpos rígidos com formas geométricas variadas e colisores otimizados.
+* O cursor do mouse atua como uma fonte de luz.
+
+## 📁 Estrutura do projeto
+A organização do código segue princípios de responsabilidade única:
+* ```environment.js```: Configuração de cena, câmera, luzes e redimensionamento.
+* ```inputs.js```: Gerenciamento de eventos de mouse e cálculos de Raycasting.
+* ```entities.js```: Fábrica de criação de malhas (meshes) e corpos físicos (rigid bodies).
+* ```main.js```: Orquestrador assíncrono e loop de animação.
 
 ## ⚙️ Como funciona
 1. Inicializa uma cena.
 2. Estabelece um mundo operado por leis físicas com gravidade zero.
-3. Gera 80 formas geométricas, além da que segue o mouse e permite a interatividade.
-4. Executa o raycasting e renderiza a cena cerca de 60 vezes por segundo.
+3. Executa o raycasting e renderiza a cena cerca de 60 vezes por segundo.
+4. A cada frame, as matrizes de posição e rotação dos rigid bodies são copiadas para as meshes do Three.js.
 
 ## 🔧 Instalação e Execução
 1. Clone o repositório:  
